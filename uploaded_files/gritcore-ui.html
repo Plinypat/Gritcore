@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GritCore — AI Construction Drawing Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #07080a;
+    --bg2:       #0c0f13;
+    --surface:   #101318;
+    --surface2:  #161b22;
+    --surface3:  #1c2230;
+    --border:    #1e2535;
+    --border2:   #263044;
+    --accent:    #ff6b2b;
+    --accent2:   #ffb347;
+    --accent3:   #3de8a0;
+    --accent4:   #5ba3ff;
+    --danger:    #ff4040;
+    --text:      #dce4f0;
+    --text2:     #7b8fa8;
+    --text3:     #3d4f65;
+    --t-orange:  rgba(255,107,43,0.12);
+    --t-yellow:  rgba(255,179,71,0.12);
+    --t-green:   rgba(61,232,160,0.12);
+    --t-blue:    rgba(91,163,255,0.12);
+    --t-red:     rgba(255,64,64,0.12);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* Subtle grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,107,43,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,107,43,0.02) 1px, transparent 1px);
+    background-size: 44px 44px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 260px 1fr 340px;
+    grid-template-rows: 54px 1fr;
+    height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    grid-column: 1 / -1;
+    background: rgba(7,8,10,0.98);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 0;
+    position: relative;
+  }
+
+  /* Accent line on topbar bottom */
+  .topbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 260px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 22px;
+    border-right: 1px solid var(--border2);
+    margin-right: 18px;
+    text-decoration: none;
+  }
+
+  .logo-gem {
+    width: 34px; height: 34px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .logo-gem svg { width: 100%; height: 100%; }
+
+  .logo-wordmark {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .logo-wordmark span {
+    color: var(--accent);
+  }
+
+  .logo-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 1px;
+  }
+
+  /* Org switcher */
+  .org-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-right: 4px;
+  }
+
+  .org-switcher:hover { border-color: var(--accent); }
+
+  .org-avatar {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #c04010, var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .org-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .org-chevron { color: var(--text3); font-size: 10px; }
+
+  .topbar-tabs {
+    display: flex;
+    gap: 1px;
+    flex: 1;
+    margin-left: 4px;
+  }
+
+  .tab {
+    padding: 6px 14px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.14s;
+    background: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .tab:hover { color: var(--text); background: var(--surface); }
+  .tab.active { color: var(--accent); background: rgba(255,107,43,0.1); }
+  .tab .tab-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent3); }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ai-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    background: rgba(61,232,160,0.07);
+    border: 1px solid rgba(61,232,160,0.2);
+    border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent3);
+    letter-spacing: 0.5px;
+  }
+
+  .ai-pulse {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    animation: glow 2s infinite;
+  }
+
+  @keyframes glow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(61,232,160,0.5); }
+    50% { box-shadow: 0 0 0 4px rgba(61,232,160,0); }
+  }
+
+  .notif-btn {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.13s;
+    position: relative;
+  }
+
+  .notif-btn:hover { color: var(--text); border-color: var(--border2); }
+
+  .notif-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    font-size: 8px;
+    font-weight: 700;
+    color: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .user-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.13s;
+  }
+
+  .user-btn:hover { background: var(--surface2); }
+
+  .user-avatar {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #2244aa, var(--accent4));
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 0.5px;
+  }
+
+  .user-info { display: flex; flex-direction: column; }
+  .user-name { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.2; }
+  .user-role { font-size: 10px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+  }
+
+  .sidebar-section { padding: 0 10px; margin-bottom: 6px; }
+
+  .sidebar-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.12s;
+    position: relative;
+  }
+
+  .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-item.active { color: var(--accent); background: rgba(255,107,43,0.08); }
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 25%; bottom: 25%;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .sidebar-item .si-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+  .sidebar-item .si-count { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+
+  .si-count.red { background: var(--t-red); color: var(--danger); padding: 1px 6px; border-radius: 3px; }
+  .si-count.orange { background: var(--t-orange); color: var(--accent); padding: 1px 6px; border-radius: 3px; }
+  .si-count.dim { color: var(--text3); }
+  .si-count.green { background: var(--t-green); color: var(--accent3); padding: 1px 6px; border-radius: 3px; }
+
+  .divider { height: 1px; background: var(--border); margin: 6px 10px; }
+
+  /* Phase pill */
+  .phase-pill {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  .pp-bid    { background: var(--t-yellow); color: var(--accent2); }
+  .pp-active { background: var(--t-green); color: var(--accent3); }
+  .pp-rfi    { background: var(--t-blue); color: var(--accent4); }
+
+  /* Team presence in sidebar */
+  .presence-row {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: -4px;
+  }
+
+  .presence-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--surface);
+    font-size: 9px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    color: #000;
+    font-family: 'Rajdhani', sans-serif;
+    margin-right: -6px;
+  }
+
+  .presence-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 14px;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    background: var(--bg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Drawing area */
+  .drawing-area {
+    flex: 1;
+    position: relative;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    min-height: 380px;
+  }
+
+  .drawing-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,107,43,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,107,43,0.03) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+
+  /* Vignette */
+  .drawing-area::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(7,8,10,0.4) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .blueprint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 700px; height: 340px;
+    z-index: 1;
+  }
+
+  /* Markup overlays */
+  .mk {
+    position: absolute;
+    border-radius: 2px;
+    cursor: pointer;
+    animation: mkIn 0.3s ease both;
+    z-index: 3;
+  }
+
+  @keyframes mkIn {
+    from { opacity:0; transform: scale(0.75); }
+    to { opacity:1; transform: scale(1); }
+  }
+
+  .mk-danger { border: 2px solid var(--danger); background: rgba(255,64,64,0.09); }
+  .mk-warn   { border: 2px solid var(--accent); background: rgba(255,107,43,0.08); }
+  .mk-info   { border: 2px solid var(--accent4); background: rgba(91,163,255,0.07); }
+  .mk-ok     { border: 2px dashed rgba(61,232,160,0.45); background: rgba(61,232,160,0.04); }
+
+  .mk-label {
+    position: absolute;
+    top: -20px; left: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .mk-danger .mk-label { background: var(--danger); color: #fff; }
+  .mk-warn   .mk-label { background: var(--accent); color: #000; }
+  .mk-info   .mk-label { background: var(--accent4); color: #000; }
+  .mk-ok     .mk-label { background: var(--accent3); color: #000; }
+
+  /* Toolbar */
+  .toolbar {
+    position: absolute;
+    bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(16,19,24,0.95);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 5px;
+    display: flex;
+    gap: 2px;
+    backdrop-filter: blur(14px);
+    z-index: 4;
+  }
+
+  .t-btn {
+    padding: 5px 11px;
+    border-radius: 5px;
+    border: none;
+    background: none;
+    color: var(--text2);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .t-btn:hover { background: var(--surface2); color: var(--text); }
+  .t-btn.on { background: rgba(255,107,43,0.12); color: var(--accent); }
+  .t-sep { width: 1px; background: var(--border); margin: 3px 1px; }
+
+  .page-badge {
+    position: absolute;
+    top: 12px; left: 12px;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(16,19,24,0.88);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    z-index: 4;
+  }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(61,232,160,0.08);
+    border: 1px solid rgba(61,232,160,0.2);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent3);
+  }
+
+  .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent3); animation: glow 1.8s infinite; }
+
+  .zoom-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: rgba(16,19,24,0.88);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    z-index: 4;
+  }
+
+  /* ── PROMPT BAR ── */
+  .prompt-area {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 11px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .prompt-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .prompt-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    padding: 7px 13px;
+    transition: all 0.18s;
+  }
+
+  .prompt-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255,107,43,0.08);
+  }
+
+  .ai-tag {
+    background: var(--accent);
+    color: #000;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .prompt-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 13.5px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .prompt-input::placeholder { color: var(--text3); }
+
+  .run-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    color: #000;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .run-btn:hover { background: #ff8040; transform: translateY(-1px); box-shadow: 0 4px 18px rgba(255,107,43,0.35); }
+
+  /* Quick prompts */
+  .qp-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .qp-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    margin-right: 2px;
+    text-transform: uppercase;
+  }
+
+  .qp {
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .qp:hover { border-color: var(--accent); color: var(--accent); background: rgba(255,107,43,0.06); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Stats strip */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .stat {
+    background: var(--surface);
+    padding: 10px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .stat:hover { background: var(--surface2); }
+
+  .stat-n {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .stat-l {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .sn-d { color: var(--danger); }
+  .sn-w { color: var(--accent); }
+  .sn-i { color: var(--accent4); }
+  .sn-p { color: var(--accent3); }
+
+  /* AI summary */
+  .ai-summary {
+    margin: 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .ais-head {
+    background: rgba(255,107,43,0.07);
+    border-bottom: 1px solid rgba(255,107,43,0.15);
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+  }
+
+  .ais-body {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.65;
+  }
+
+  .ais-body strong { color: var(--text); font-weight: 600; }
+  .hl-d { color: var(--danger); font-weight: 600; }
+  .hl-w { color: var(--accent); font-weight: 600; }
+  .hl-i { color: var(--accent4); }
+  .hl-g { color: var(--accent3); font-weight: 600; }
+
+  /* Panel header */
+  .panel-hd {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+    display: flex; align-items: center; gap: 7px;
+  }
+
+  .pdot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: gdot 2s infinite;
+  }
+
+  @keyframes gdot {
+    0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(255,107,43,0.5); }
+    50%      { opacity:0.7; box-shadow:0 0 0 5px rgba(255,107,43,0); }
+  }
+
+  .panel-btns { display: flex; gap: 4px; }
+
+  .pb {
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    transition: all 0.12s;
+  }
+
+  .pb:hover { background: var(--surface2); color: var(--text); }
+
+  /* Filters */
+  .filters {
+    padding: 7px 10px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .fc {
+    padding: 3px 9px;
+    border-radius: 3px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    border: 1px solid transparent;
+    transition: all 0.12s;
+  }
+
+  .fc-all { border-color: var(--border2); color: var(--text2); }
+  .fc-all.on { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+  .fc-d { background: var(--t-red); color: var(--danger); }
+  .fc-w { background: var(--t-orange); color: var(--accent); }
+  .fc-i { background: var(--t-blue); color: var(--accent4); }
+  .fc-g { background: var(--t-green); color: var(--accent3); }
+
+  /* Issues list */
+  .issues { padding: 9px; display: flex; flex-direction: column; gap: 6px; }
+
+  .ic {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.14s;
+    position: relative;
+    overflow: hidden;
+    animation: icIn 0.3s ease both;
+  }
+
+  .ic:nth-child(1) { animation-delay: 0.04s; }
+  .ic:nth-child(2) { animation-delay: 0.09s; }
+  .ic:nth-child(3) { animation-delay: 0.14s; }
+  .ic:nth-child(4) { animation-delay: 0.19s; }
+  .ic:nth-child(5) { animation-delay: 0.24s; }
+  .ic:nth-child(6) { animation-delay: 0.29s; }
+
+  @keyframes icIn {
+    from { opacity:0; transform: translateY(8px); }
+    to { opacity:1; transform: translateY(0); }
+  }
+
+  .ic::before {
+    content:'';
+    position: absolute;
+    left:0; top:0; bottom:0;
+    width: 3px;
+  }
+
+  .ic-d::before { background: var(--danger); }
+  .ic-w::before { background: var(--accent); }
+  .ic-i::before { background: var(--accent4); }
+  .ic-g::before { background: var(--accent3); }
+
+  .ic:hover { border-color: var(--border2); transform: translateX(2px); }
+  .ic.sel  { border-color: rgba(255,107,43,0.4); background: rgba(255,107,43,0.04); }
+
+  .ic-top { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 5px; }
+
+  .ic-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .it-d { background: var(--t-red); color: var(--danger); }
+  .it-w { background: var(--t-orange); color: var(--accent); }
+  .it-i { background: var(--t-blue); color: var(--accent4); }
+  .it-g { background: var(--t-green); color: var(--accent3); }
+
+  .ic-title { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.35; flex:1; }
+  .ic-desc  { font-size: 11.5px; color: var(--text2); line-height: 1.55; margin-bottom: 6px; }
+
+  .ic-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+  .im {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text3);
+    display: flex; align-items: center; gap: 3px;
+  }
+
+  .ic-risk {
+    margin-left: auto;
+    font-family: 'Rajdhani', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--danger);
+  }
+
+  .ic-actions {
+    display: flex; gap: 5px;
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ia {
+    flex: 1;
+    padding: 4px 0;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+  }
+
+  .ia:hover { background: var(--surface3); color: var(--text); }
+  .ia.p { background: rgba(255,107,43,0.1); border-color: rgba(255,107,43,0.3); color: var(--accent); }
+  .ia.p:hover { background: rgba(255,107,43,0.18); }
+
+  /* Qty block */
+  .qty-block {
+    margin: 0 9px 9px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-top: 2px solid var(--accent3);
+    border-radius: 5px;
+    padding: 9px 12px;
+    flex-shrink: 0;
+  }
+
+  .qb-head {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent3);
+    margin-bottom: 7px;
+  }
+
+  .qb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    padding: 2px 0;
+  }
+
+  .qb-row .l { color: var(--text2); }
+  .qb-row .v { font-family: 'JetBrains Mono', monospace; color: var(--text); font-weight: 500; }
+  .qb-row .v.warn { color: var(--accent); }
+  .qb-row .v.ok { color: var(--accent3); font-weight: 700; }
+  .qb-row.total { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 5px; }
+  .qb-row.total .l { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-gem">
+        <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="17,2 32,10 32,24 17,32 2,24 2,10" fill="rgba(255,107,43,0.15)" stroke="#ff6b2b" stroke-width="1.5"/>
+          <polygon points="17,7 27,13 27,21 17,27 7,21 7,13" fill="rgba(255,107,43,0.2)" stroke="#ff8040" stroke-width="1"/>
+          <polygon points="17,12 22,16 22,20 17,23 12,20 12,16" fill="#ff6b2b"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-wordmark">Grit<span>Core</span></div>
+        <span class="logo-sub">AI Drawing Intelligence</span>
+      </div>
+    </a>
+
+    <!-- Org Switcher -->
+    <div class="org-switcher">
+      <div class="org-avatar">AC</div>
+      <span class="org-name">Apex Concrete Co.</span>
+      <span class="org-chevron">▾</span>
+    </div>
+
+    <div class="topbar-tabs">
+      <button class="tab active"><span class="tab-dot"></span> AI Review</button>
+      <button class="tab">Pour Sequence</button>
+      <button class="tab">Rebar Takeoff</button>
+      <button class="tab">RFIs</button>
+      <button class="tab">Overlay</button>
+      <button class="tab">Projects</button>
+    </div>
+
+    <div class="topbar-right">
+      <div class="ai-status"><div class="ai-pulse"></div> CLAUDE · CONNECTED</div>
+      <button class="notif-btn">🔔<span class="notif-badge">4</span></button>
+      <div class="user-btn">
+        <div class="user-avatar">TM</div>
+        <div class="user-info">
+          <span class="user-name">T. Martinez</span>
+          <span class="user-role">Estimator</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Active Bid</div>
+      <div class="sidebar-item active">
+        <span class="si-icon">📐</span> S101 Slab Plan
+        <span class="si-count red">2</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">📋</span> S102 Foundations
+        <span class="si-count orange">3</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">📋</span> S103 Rebar Details
+        <span class="si-count dim">—</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">📋</span> S104 Tilt-Up Panels
+        <span class="si-count orange">1</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">📋</span> S105 Grade Beams
+        <span class="si-count dim">—</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">📋</span> S201 Column Details
+        <span class="si-count green">✓</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">All Projects</div>
+      <div class="sidebar-item">
+        <span class="si-icon">🏗</span> Commerce Park
+        <span class="phase-pill pp-bid">BID</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">🏗</span> Westside Distribution
+        <span class="phase-pill pp-active">ACTIVE</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">🏗</span> Retail Center Ph.2
+        <span class="phase-pill pp-rfi">RFI</span>
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">🏗</span> Pump Station 7
+        <span class="phase-pill pp-bid">BID</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Workflows</div>
+      <div class="sidebar-item">
+        <span class="si-icon">💰</span> Bid Estimate
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">⬡</span> CY Takeoff
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">📤</span> Export RFI List
+      </div>
+      <div class="sidebar-item">
+        <span class="si-icon">🔀</span> Compare Revisions
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Team Online</div>
+    </div>
+    <div class="presence-row">
+      <div class="presence-avatar" style="background:linear-gradient(135deg,#3399ff,#00ccff)">TM</div>
+      <div class="presence-avatar" style="background:linear-gradient(135deg,#ff6b2b,#ffb347)">JR</div>
+      <div class="presence-avatar" style="background:linear-gradient(135deg,#3de8a0,#00bfae)">SK</div>
+      <span class="presence-label">3 active</span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="drawing-area">
+      <div class="drawing-bg"></div>
+
+      <!-- Blueprint SVG -->
+      <div class="blueprint">
+        <svg viewBox="0 0 700 340" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect x="38" y="28" width="624" height="284" stroke="rgba(255,107,43,0.4)" stroke-width="3" fill="none"/>
+          <!-- Column grid dashed -->
+          <line x1="38" y1="28" x2="38" y2="312" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="194" y1="28" x2="194" y2="312" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="350" y1="28" x2="350" y2="312" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="506" y1="28" x2="506" y2="312" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="662" y1="28" x2="662" y2="312" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="38" y1="28" x2="662" y2="28" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="38" y1="170" x2="662" y2="170" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <line x1="38" y1="312" x2="662" y2="312" stroke="rgba(255,107,43,0.1)" stroke-width="1" stroke-dasharray="3,5"/>
+          <!-- Column nodes -->
+          <rect x="34" y="24" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="190" y="24" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="346" y="24" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="502" y="24" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="658" y="24" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="34" y="166" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="190" y="166" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="346" y="166" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="502" y="166" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="658" y="166" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="34" y="308" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="190" y="308" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="346" y="308" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="502" y="308" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <rect x="658" y="308" width="8" height="8" fill="rgba(255,107,43,0.7)" rx="1"/>
+          <!-- Zone fills -->
+          <rect x="38" y="28" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <rect x="194" y="28" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <rect x="350" y="28" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <rect x="506" y="28" width="156" height="142" fill="rgba(91,163,255,0.06)" stroke="rgba(91,163,255,0.18)" stroke-width="0.75"/>
+          <rect x="38" y="170" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <rect x="194" y="170" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <rect x="350" y="170" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <rect x="506" y="170" width="156" height="142" fill="rgba(255,107,43,0.03)" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <!-- Labels -->
+          <text x="116" y="92" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE A</text>
+          <text x="116" y="104" fill="rgba(255,107,43,0.2)" font-size="7.5" text-anchor="middle" font-family="monospace">6" SOG</text>
+          <text x="272" y="92" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE B</text>
+          <text x="272" y="104" fill="rgba(255,107,43,0.2)" font-size="7.5" text-anchor="middle" font-family="monospace">6" SOG</text>
+          <text x="428" y="92" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE C</text>
+          <text x="428" y="104" fill="rgba(255,107,43,0.2)" font-size="7.5" text-anchor="middle" font-family="monospace">6" SOG</text>
+          <text x="584" y="92" fill="rgba(91,163,255,0.55)" font-size="9" text-anchor="middle" font-family="monospace">ZONE D</text>
+          <text x="584" y="104" fill="rgba(91,163,255,0.45)" font-size="7.5" text-anchor="middle" font-family="monospace">8" SOG</text>
+          <text x="116" y="240" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE E</text>
+          <text x="272" y="240" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE F</text>
+          <text x="428" y="240" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE G</text>
+          <text x="584" y="240" fill="rgba(255,107,43,0.3)" font-size="9" text-anchor="middle" font-family="monospace">ZONE H</text>
+          <!-- Dim line -->
+          <line x1="38" y1="18" x2="662" y2="18" stroke="rgba(255,107,43,0.12)" stroke-width="0.75"/>
+          <line x1="38" y1="15" x2="38" y2="21" stroke="rgba(255,107,43,0.2)" stroke-width="1"/>
+          <line x1="662" y1="15" x2="662" y2="21" stroke="rgba(255,107,43,0.2)" stroke-width="1"/>
+          <text x="350" y="13" fill="rgba(255,107,43,0.28)" font-size="8" text-anchor="middle" font-family="monospace">200'-0" BUILDING FOOTPRINT</text>
+          <!-- Scale -->
+          <line x1="536" y1="328" x2="636" y2="328" stroke="rgba(255,107,43,0.2)" stroke-width="1.5"/>
+          <line x1="536" y1="324" x2="536" y2="332" stroke="rgba(255,107,43,0.2)" stroke-width="1.5"/>
+          <line x1="636" y1="324" x2="636" y2="332" stroke="rgba(255,107,43,0.2)" stroke-width="1.5"/>
+          <text x="586" y="339" fill="rgba(255,107,43,0.2)" font-size="7" text-anchor="middle" font-family="monospace">1/16" = 1'-0"</text>
+          <rect x="38" y="320" width="180" height="14" fill="none" stroke="rgba(255,107,43,0.08)" stroke-width="0.5"/>
+          <text x="46" y="330" fill="rgba(255,107,43,0.25)" font-size="7" font-family="monospace">S101 — SLAB ON GRADE PLAN · REV B</text>
+        </svg>
+
+        <!-- AI Markups -->
+        <div class="mk mk-danger" style="left:508px;top:31px;width:152px;height:137px;animation-delay:0.5s">
+          <span class="mk-label">CRIT-01</span>
+        </div>
+        <div class="mk mk-warn" style="left:41px;top:31px;width:152px;height:56px;animation-delay:0.7s">
+          <span class="mk-label">WARN-02</span>
+        </div>
+        <div class="mk mk-info" style="left:196px;top:173px;width:152px;height:55px;animation-delay:0.9s">
+          <span class="mk-label">INFO-01</span>
+        </div>
+        <div class="mk mk-ok" style="left:41px;top:173px;width:152px;height:136px;animation-delay:1.1s">
+          <span class="mk-label">OK-01</span>
+        </div>
+      </div>
+
+      <div class="page-badge">
+        <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+        S101 — SLAB ON GRADE · Sheet 3 / 18 · Rev B
+      </div>
+      <div class="zoom-badge">80% · Commerce Park Bid</div>
+
+      <div class="toolbar">
+        <button class="t-btn">🔍 Zoom</button>
+        <button class="t-btn on">✦ Select</button>
+        <div class="t-sep"></div>
+        <button class="t-btn">📐 Measure</button>
+        <button class="t-btn">⬡ Takeoff</button>
+        <button class="t-btn">✏️ Markup</button>
+        <button class="t-btn">💬 RFI</button>
+        <div class="t-sep"></div>
+        <button class="t-btn">⟳</button>
+        <button class="t-btn">↪</button>
+      </div>
+    </div>
+
+    <!-- Prompt area -->
+    <div class="prompt-area">
+      <div class="prompt-row">
+        <div class="prompt-box">
+          <div class="ai-tag">Claude</div>
+          <input class="prompt-input" type="text" value="Find scope conflicts between Zone D 8&quot; slab and foundation edge details on S102">
+        </div>
+        <button class="run-btn">▶ Run</button>
+      </div>
+      <div class="qp-row">
+        <span class="qp-head">Quick:</span>
+        <div class="qp">Calc total CY</div>
+        <div class="qp">Flag missing rebar specs</div>
+        <div class="qp">Control joint spacing</div>
+        <div class="qp">Thickened edge details</div>
+        <div class="qp">Generate RFI list</div>
+        <div class="qp">Vapor barrier check</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+
+    <div class="stats-strip">
+      <div class="stat"><div class="stat-n sn-d">1</div><div class="stat-l">Critical</div></div>
+      <div class="stat"><div class="stat-n sn-w">3</div><div class="stat-l">Warning</div></div>
+      <div class="stat"><div class="stat-n sn-i">4</div><div class="stat-l">Info</div></div>
+      <div class="stat"><div class="stat-n sn-p">9</div><div class="stat-l">Passed</div></div>
+    </div>
+
+    <!-- AI Summary -->
+    <div class="ai-summary">
+      <div class="ais-head">
+        <div class="ai-tag">Claude</div>
+        S101 Slab Plan — AI Review Summary
+      </div>
+      <div class="ais-body">
+        <span class="hl-d">CRIT-01</span>: Zone D drawn as <strong>8" SOG</strong> — no matching thickened edge detail on S102. Scope gap: bid risk <span class="hl-d">~$18K</span>. 
+        <span class="hl-w">WARN-02</span>: Zone A control joint spacing missing — assume <strong>15' max ACI</strong> or flag as RFI. 
+        Total slab estimated at <span class="hl-i">~2,840 CY</span>. 
+        <span class="hl-g">9 items passed</span> including rebar cover, column grid, and overall dimensions.
+      </div>
+    </div>
+
+    <!-- Qty block -->
+    <div class="qty-block">
+      <div class="qb-head">⬡ AI Quantity Estimate</div>
+      <div class="qb-row"><span class="l">6" SOG — Zones A–C, E–H</span><span class="v">2,610 CY</span></div>
+      <div class="qb-row"><span class="l">8" SOG — Zone D</span><span class="v warn">230 CY ⚠</span></div>
+      <div class="qb-row"><span class="l">Thickened edges</span><span class="v warn">TBD — RFI</span></div>
+      <div class="qb-row"><span class="l">Control joints (est.)</span><span class="v">4,200 LF</span></div>
+      <div class="qb-row total"><span class="l">Total CY (prelim.)</span><span class="v ok">~2,840 CY</span></div>
+    </div>
+
+    <div class="panel-hd">
+      <div class="panel-title"><div class="pdot"></div>Review Issues</div>
+      <div class="panel-btns">
+        <button class="pb" title="Export RFIs">↓</button>
+        <button class="pb" title="Assign all">⊞</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="fc fc-all on">ALL 17</div>
+      <div class="fc fc-d">● CRIT 1</div>
+      <div class="fc fc-w">● WARN 3</div>
+      <div class="fc fc-i">● INFO 4</div>
+      <div class="fc fc-g">✓ OK 9</div>
+    </div>
+
+    <div class="issues">
+
+      <div class="ic ic-d sel">
+        <div class="ic-top">
+          <span class="ic-tag it-d">Critical</span>
+          <div class="ic-title">Zone D slab / edge detail conflict</div>
+          <span class="ic-risk">$18K</span>
+        </div>
+        <div class="ic-desc">8" slab in Zone D but no thickened edge detail exists on S102. Scope gap affects formwork and rebar bid.</div>
+        <div class="ic-meta">
+          <span class="im">📍 Zone D / Grid 4–5</span>
+          <span class="im">🏷 ACI 360R</span>
+        </div>
+        <div class="ic-actions">
+          <button class="ia">Flag</button>
+          <button class="ia">Assign</button>
+          <button class="ia p">RFI ↗</button>
+        </div>
+      </div>
+
+      <div class="ic ic-w">
+        <div class="ic-top">
+          <span class="ic-tag it-w">Warning</span>
+          <div class="ic-title">Control joint spacing not specified</div>
+        </div>
+        <div class="ic-desc">Zone A has no control joint callout. ACI 360R recommends 15' max for 6" slab. Bid worst case or RFI.</div>
+        <div class="ic-meta">
+          <span class="im">📍 Zone A</span>
+          <span class="im">🏷 ACI 360R-10</span>
+          <span class="im">~4,200 LF est.</span>
+        </div>
+        <div class="ic-actions">
+          <button class="ia">Flag</button>
+          <button class="ia p">RFI ↗</button>
+        </div>
+      </div>
+
+      <div class="ic ic-w">
+        <div class="ic-top">
+          <span class="ic-tag it-w">Warning</span>
+          <div class="ic-title">Vapor barrier spec not called out</div>
+        </div>
+        <div class="ic-desc">No vapor retarder spec on slab plan. Required per CBC 2022 for occupied slab-on-grade in CA climate zones.</div>
+        <div class="ic-meta">
+          <span class="im">📍 Full slab</span>
+          <span class="im">🏷 CBC 2022 §1905A.1</span>
+        </div>
+        <div class="ic-actions">
+          <button class="ia">Flag</button>
+          <button class="ia p">RFI ↗</button>
+        </div>
+      </div>
+
+      <div class="ic ic-w">
+        <div class="ic-top">
+          <span class="ic-tag it-w">Warning</span>
+          <div class="ic-title">Dim string mismatch — North bay</div>
+        </div>
+        <div class="ic-desc">North bay string sums 199'-6" vs. overall 200'-0". 6" unaccounted. Verify before column layout.</div>
+        <div class="ic-meta">
+          <span class="im">📍 North wall, Grid 1</span>
+          <span class="im">🏷 Coord check</span>
+        </div>
+        <div class="ic-actions">
+          <button class="ia">Flag</button>
+          <button class="ia p">Mark Up</button>
+        </div>
+      </div>
+
+      <div class="ic ic-i">
+        <div class="ic-top">
+          <span class="ic-tag it-i">Info</span>
+          <div class="ic-title">Zone D quantity: 230 CY calculated</div>
+        </div>
+        <div class="ic-desc">AI takeoff for Zone D 8" slab = 230 CY from drawing geometry. Verify against geotech for subbase.</div>
+        <div class="ic-meta">
+          <span class="im">📍 Zone D</span>
+          <span class="im">⬡ AI Takeoff</span>
+        </div>
+        <div class="ic-actions">
+          <button class="ia p">Accept</button>
+          <button class="ia">Add Note</button>
+        </div>
+      </div>
+
+      <div class="ic ic-g">
+        <div class="ic-top">
+          <span class="ic-tag it-g">Passed</span>
+          <div class="ic-title">Rebar coverage ACI 318 compliant ✓</div>
+        </div>
+        <div class="ic-desc">S103 details show 3" cover on all slab rebar — meets ACI 318-19 §20.6 for soil exposure class.</div>
+        <div class="ic-meta">
+          <span class="im">🏷 ACI 318-19 §20.6</span>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+</body>
+</html>
