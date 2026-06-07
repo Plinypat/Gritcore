@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #07080a;
+  --bg2: #0c0f13;
+  --surface: #101318;
+  --surface2: #161b22;
+  --surface3: #1c2230;
+  --border: #1e2535;
+  --border2: #263044;
+  --accent: #ff6b2b;
+  --accent2: #ffb347;
+  --accent3: #3de8a0;
+  --accent4: #5ba3ff;
+  --danger: #ff4040;
+  --text: #dce4f0;
+  --text2: #7b8fa8;
+  --text3: #3d4f65;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+}
+
+/* Body grid pattern */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Noise overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#__next,
+[data-nextjs-root] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text3);
+}
+
+/* Custom utilities */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+.font-display {
+  font-family: 'Rajdhani', sans-serif;
+}
+
+/* Severity colors */
+.severity-critical { color: var(--danger); }
+.severity-warning  { color: var(--accent2); }
+.severity-info     { color: var(--accent4); }
+.severity-passed   { color: var(--accent3); }
+
+.bg-severity-critical { background-color: rgba(255, 64, 64, 0.12); }
+.bg-severity-warning  { background-color: rgba(255, 179, 71, 0.12); }
+.bg-severity-info     { background-color: rgba(91, 163, 255, 0.12); }
+.bg-severity-passed   { background-color: rgba(61, 232, 160, 0.12); }
+
+.border-severity-critical { border-color: rgba(255, 64, 64, 0.4); }
+.border-severity-warning  { border-color: rgba(255, 179, 71, 0.4); }
+.border-severity-info     { border-color: rgba(91, 163, 255, 0.4); }
+.border-severity-passed   { border-color: rgba(61, 232, 160, 0.4); }
+
+/* Glow effects */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(255, 107, 43, 0.2);
+}
+.glow-danger {
+  box-shadow: 0 0 12px rgba(255, 64, 64, 0.3);
+}
+
+/* Pulse animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Blueprint scan line */
+@keyframes scanline {
+  0%   { top: 0%; }
+  100% { top: 100%; }
+}
+
+/* Phase badges */
+.phase-bid    { background-color: rgba(255, 179, 71, 0.15); color: var(--accent2); border: 1px solid rgba(255, 179, 71, 0.3); }
+.phase-active { background-color: rgba(61, 232, 160, 0.15); color: var(--accent3); border: 1px solid rgba(61, 232, 160, 0.3); }
+.phase-rfi    { background-color: rgba(91, 163, 255, 0.15); color: var(--accent4); border: 1px solid rgba(91, 163, 255, 0.3); }
