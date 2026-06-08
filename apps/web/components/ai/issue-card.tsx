@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useReviewStore } from '@/lib/store';
-import { issuesApi } from '@/lib/api';
+import { api, issuesApi } from '@/lib/api';
 import { formatCurrency, severityLabel } from '@/lib/utils';
 import type { Issue } from '@gritcore/types';
 
@@ -25,9 +26,36 @@ const SEVERITY_BG: Record<string, string> = {
 };
 
 export default function IssueCard({ issue }: Props) {
-  const { activeIssue, setActiveIssue, updateIssue } = useReviewStore();
+  const { activeIssue, setActiveIssue, updateIssue, activeReview } = useReviewStore();
   const isActive = activeIssue?.id === issue.id;
   const [hovered, setHovered] = useState(false);
+  const [creatingRfi, setCreatingRfi] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  async function handleCreateRFI() {
+    // Extract project ID from current path: /projects/[id]
+    const match = pathname.match(/\/projects\/([^/]+)/);
+    const projectId = match?.[1];
+    if (!projectId) return;
+
+    setCreatingRfi(true);
+    try {
+      const res = await api.post(`/projects/${projectId}/rfis`, {
+        subject: issue.title,
+        question: `${issue.description}${issue.code_ref ? `\n\nCode Reference: ${issue.code_ref}` : ''}${issue.grid_location ? `\nLocation: ${issue.grid_location}` : ''}`,
+        priority: issue.severity === 'critical' ? 'urgent' : issue.severity === 'warning' ? 'high' : 'medium',
+        issue_id: issue.id,
+        cost_impact: !!(issue.dollar_risk_estimate && issue.dollar_risk_estimate > 0),
+        cost_impact_amount: issue.dollar_risk_estimate ?? undefined,
+      });
+      router.push(`/projects/${projectId}/rfis`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreatingRfi(false);
+    }
+  }
 
   const color = SEVERITY_COLOR[issue.severity] ?? '#fff';
   const bg = SEVERITY_BG[issue.severity] ?? 'transparent';
@@ -183,10 +211,10 @@ export default function IssueCard({ issue }: Props) {
             active={issue.status === 'resolved'}
           />
           <ActionBtn
-            label="RFI ↗"
+            label={creatingRfi ? 'Creating...' : 'RFI ↗'}
             icon="📋"
             color="var(--accent4)"
-            onClick={() => {}}
+            onClick={handleCreateRFI}
             active={false}
           />
         </div>
