@@ -103,7 +103,7 @@ export default function ProjectPage() {
           position: 'relative',
         }}
       >
-        {/* PDF viewer */}
+        {/* PDF viewer — toolbar floats over the drawing */}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           {/* Upload button — always visible top-right */}
           <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', gap: 8 }}>
@@ -142,14 +142,14 @@ export default function ProjectPage() {
           )}
         </div>
 
-        {/* Toolbar */}
+        {/* Toolbar — overlaid on drawing, bottom-center */}
         <div
           style={{
             position: 'absolute',
-            bottom: 80,
+            bottom: 16,
             left: '50%',
             transform: 'translateX(-50%)',
-            zIndex: 10,
+            zIndex: 20,
           }}
         >
           <Toolbar zoom={zoom * 100} onZoom={(z) => setZoom(z / 100)} />
