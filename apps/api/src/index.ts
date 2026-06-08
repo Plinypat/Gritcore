@@ -3,7 +3,8 @@ import Fastify from 'fastify';
 import multipart from '@fastify/multipart';
 import { config } from './config.js';
 import { pool } from './db/client.js';
-import { mkdirSync } from 'fs';
+import { mkdirSync, createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 
 // Plugins
 import corsPlugin from './plugins/cors.js';
@@ -54,7 +55,11 @@ async function bootstrap() {
   // Serve uploaded files
   fastify.get('/uploads/*', async (request, reply) => {
     const filePath = (request.params as Record<string, string>)['*'];
-    return reply.sendFile(filePath, config.UPLOAD_DIR);
+    const fullPath = join(config.UPLOAD_DIR, filePath);
+    if (!existsSync(fullPath)) {
+      return reply.code(404).send({ error: 'File not found' });
+    }
+    return reply.send(createReadStream(fullPath));
   });
 
   // Graceful shutdown
