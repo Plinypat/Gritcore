@@ -34,14 +34,13 @@ export default function IssueCard({ issue }: Props) {
   const pathname = usePathname();
 
   async function handleCreateRFI() {
-    // Extract project ID from current path: /projects/[id]
     const match = pathname.match(/\/projects\/([^/]+)/);
     const projectId = match?.[1];
-    if (!projectId) return;
+    if (!projectId) { console.error('handleCreateRFI: could not extract projectId from', pathname); return; }
 
     setCreatingRfi(true);
     try {
-      const res = await api.post(`/projects/${projectId}/rfis`, {
+      await api.post(`/projects/${projectId}/rfis`, {
         subject: issue.title,
         question: `${issue.description}${issue.code_ref ? `\n\nCode Reference: ${issue.code_ref}` : ''}${issue.grid_location ? `\nLocation: ${issue.grid_location}` : ''}`,
         priority: issue.severity === 'critical' ? 'urgent' : issue.severity === 'warning' ? 'high' : 'medium',
@@ -51,7 +50,7 @@ export default function IssueCard({ issue }: Props) {
       });
       router.push(`/projects/${projectId}/rfis`);
     } catch (err) {
-      console.error(err);
+      console.error('handleCreateRFI error:', err);
     } finally {
       setCreatingRfi(false);
     }

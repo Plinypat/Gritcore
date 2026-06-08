@@ -157,19 +157,19 @@ export default function ProjectPage() {
               </button>
             </div>
           )}
-        </div>
 
-        {/* Toolbar — overlaid on drawing, bottom-center */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 16,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 20,
-          }}
-        >
-          <Toolbar zoom={zoom * 100} onZoom={(z) => setZoom(z / 100)} />
+          {/* Toolbar — overlaid on drawing, bottom-center */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 20,
+            }}
+          >
+            <Toolbar zoom={zoom * 100} onZoom={(z) => setZoom(z / 100)} />
+          </div>
         </div>
 
         {/* Prompt bar */}

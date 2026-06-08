@@ -18,6 +18,7 @@ import projectRoutes from './routes/projects.js';
 import sheetRoutes from './routes/sheets.js';
 import reviewRoutes from './routes/reviews.js';
 import issueRoutes from './routes/issues.js';
+import rfiRoutes from './routes/rfis.js';
 
 async function bootstrap() {
   // Ensure upload directory exists
@@ -51,6 +52,7 @@ async function bootstrap() {
   await fastify.register(sheetRoutes);
   await fastify.register(reviewRoutes);
   await fastify.register(issueRoutes);
+  await fastify.register(rfiRoutes);
 
   // Serve uploaded files
   fastify.get('/uploads/*', async (request, reply) => {
