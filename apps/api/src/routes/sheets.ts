@@ -4,7 +4,8 @@ import { join } from 'path';
 import { pipeline } from 'stream/promises';
 import { query, queryOne } from '../db/client.js';
 import { config } from '../config.js';
-import { uploadStream, getPresignedUrl } from '../lib/storage.js';
+import { uploadStream, getPresignedUrl, s3 } from '../lib/storage.js';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import type { JWTPayload, Sheet } from '@gritcore/types';
 
 const useS3 = () => !!(config.S3_ENDPOINT && config.S3_ACCESS_KEY);
@@ -108,7 +109,7 @@ export default async function sheetRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // GET /sheets/:id/url — get a presigned (S3) or direct URL for the file
+  // GET /sheets/:id/url — get a URL for the file (proxied through API to avoid S3 CORS issues)
   fastify.get<{ Params: { id: string } }>(
     '/sheets/:id/url',
     { preHandler: [fastify.authenticate] },
@@ -122,17 +123,45 @@ export default async function sheetRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'Not Found', message: 'Sheet not found', statusCode: 404 });
       }
 
-      let url: string;
-      if (useS3()) {
-        url = await getPresignedUrl(sheet.file_url, 3600);
-      } else {
-        // Local file — construct absolute URL using request headers
-        const proto = request.headers['x-forwarded-proto'] ?? 'http';
-        const host = request.headers['x-forwarded-host'] ?? request.hostname;
-        url = `${proto}://${host}${sheet.file_url}`;
+      // Always proxy through the API — avoids S3 CORS issues entirely
+      const proto = request.headers['x-forwarded-proto'] ?? 'http';
+      const host = request.headers['x-forwarded-host'] ?? request.hostname;
+      const url = `${proto}://${host}/sheets/${sheet.id}/file`;
+
+      return reply.send({ data: { url, expiresIn: null } });
+    }
+  );
+
+  // GET /sheets/:id/file — proxy the actual file bytes (S3 or local)
+  fastify.get<{ Params: { id: string } }>(
+    '/sheets/:id/file',
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const { orgId } = request.user as JWTPayload;
+      const sheet = await queryOne<Sheet>(
+        'SELECT * FROM sheets WHERE id = $1 AND org_id = $2',
+        [request.params.id, orgId]
+      );
+      if (!sheet) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Sheet not found', statusCode: 404 });
       }
 
-      return reply.send({ data: { url, expiresIn: useS3() ? 3600 : null } });
+      if (useS3()) {
+        const obj = await s3.send(new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: sheet.file_url }));
+        const contentType = obj.ContentType ?? 'application/pdf';
+        reply.header('Content-Type', contentType);
+        if (obj.ContentLength) reply.header('Content-Length', obj.ContentLength);
+        reply.header('Cache-Control', 'private, max-age=3600');
+        return reply.send(obj.Body);
+      } else {
+        const { createReadStream, existsSync } = await import('fs');
+        if (!existsSync(sheet.file_url)) {
+          return reply.code(404).send({ error: 'Not Found', message: 'File not found on disk', statusCode: 404 });
+        }
+        reply.header('Content-Type', 'application/pdf');
+        reply.header('Cache-Control', 'private, max-age=3600');
+        return reply.send(createReadStream(sheet.file_url));
+      }
     }
   );
 }
