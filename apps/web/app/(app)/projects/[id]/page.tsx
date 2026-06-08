@@ -46,6 +46,20 @@ export default function ProjectPage() {
         setSheetUrl(objectUrl);
       })
       .catch(console.error);
+
+    // Load the latest completed review for this sheet from the DB
+    reviewsApi.listForSheet(activeSheet.id)
+      .then((reviews: any[]) => {
+        const latest = reviews.find((r: any) => r.status === 'complete');
+        if (latest) {
+          setReview(latest);
+          return reviewsApi.get(latest.id).then((full: any) => {
+            setIssues(full.issues ?? []);
+          });
+        }
+      })
+      .catch(console.error);
+
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
@@ -53,6 +67,9 @@ export default function ProjectPage() {
 
   async function handleRunReview() {
     if (!activeSheet || isReviewing) return;
+    // Clear existing results so the spinner shows
+    setReview(null);
+    setIssues([]);
     setReviewing(true);
     try {
       const result = await reviewsApi.trigger(activeSheet.id);

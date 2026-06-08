@@ -79,7 +79,7 @@ interface ReviewState {
   activeIssue: Issue | null;
   filter: 'all' | 'critical' | 'warning' | 'info' | 'passed';
   isReviewing: boolean;
-  setReview: (review: AIReview) => void;
+  setReview: (review: AIReview | null) => void;
   setIssues: (issues: Issue[]) => void;
   setActiveIssue: (issue: Issue | null) => void;
   setFilter: (filter: ReviewState['filter']) => void;
