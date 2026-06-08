@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { projectsApi, sheetsApi, reviewsApi } from '@/lib/api';
@@ -19,6 +19,8 @@ export default function ProjectPage() {
   const [activeSheet, setActiveSheet] = useState<Sheet | null>(null);
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1.5);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -55,6 +57,23 @@ export default function ProjectPage() {
     }
   }
 
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setUploading(true);
+    try {
+      const sheet = await sheetsApi.upload(id, file);
+      const updatedSheets = [...sheets, sheet];
+      setSheets(updatedSheets);
+      setActiveSheet(sheet);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
   const displaySheetName = activeSheet?.name ?? 'No drawing selected';
 
   return (
@@ -78,11 +97,39 @@ export default function ProjectPage() {
       >
         {/* PDF viewer */}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          {/* Upload button — always visible top-right */}
+          <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', gap: 8 }}>
+            {sheets.length > 1 && (
+              <select
+                value={activeSheet?.id ?? ''}
+                onChange={e => setActiveSheet(sheets.find(s => s.id === e.target.value) ?? null)}
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', color: 'var(--text)', fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}
+              >
+                {sheets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+            <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" style={{ display: 'none' }} onChange={handleUpload} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ background: uploading ? 'rgba(255,107,43,0.4)' : 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 12, fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, letterSpacing: '0.08em', cursor: uploading ? 'not-allowed' : 'pointer' }}
+            >
+              {uploading ? 'UPLOADING...' : '+ UPLOAD DRAWING'}
+            </button>
+          </div>
+
           {sheetUrl ? (
             <PDFViewer url={sheetUrl} externalZoom={zoom} />
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: 'var(--text2)' }}>
-              <div style={{ fontSize: 13 }}>Upload a drawing to get started</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 16, color: 'var(--text2)' }}>
+              <div style={{ fontSize: 32 }}>📐</div>
+              <div style={{ fontSize: 14, color: 'var(--text2)' }}>No drawing loaded</div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '10px 20px', color: '#fff', fontSize: 13, fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer' }}
+              >
+                + UPLOAD DRAWING
+              </button>
             </div>
           )}
         </div>
