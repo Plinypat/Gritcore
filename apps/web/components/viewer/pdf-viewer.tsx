@@ -27,8 +27,10 @@ export default function PDFViewer({ url, onDimensionsChange, externalZoom }: PDF
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Cancel any in-flight render and wait for it to fully stop
     if (renderTaskRef.current) {
       renderTaskRef.current.cancel();
+      try { await renderTaskRef.current.promise; } catch (_) {}
       renderTaskRef.current = null;
     }
 
@@ -47,6 +49,7 @@ export default function PDFViewer({ url, onDimensionsChange, externalZoom }: PDF
       const renderTask = page.render({ canvasContext: ctx, viewport });
       renderTaskRef.current = renderTask;
       await renderTask.promise;
+      renderTaskRef.current = null;
     } catch (e: any) {
       if (e?.name !== 'RenderingCancelledException') {
         console.error('PDF render error:', e);
