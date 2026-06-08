@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
-import { projectsApi, sheetsApi, reviewsApi } from '@/lib/api';
+import { api, projectsApi, sheetsApi, reviewsApi } from '@/lib/api';
 import { useProjectStore, useReviewStore } from '@/lib/store';
 import Toolbar from '@/components/viewer/toolbar';
 import PromptBar from '@/components/ai/prompt-bar';
@@ -38,9 +38,17 @@ export default function ProjectPage() {
       setSheetUrl(null);
       return;
     }
-    sheetsApi.getUrl(activeSheet.id)
-      .then((data: { url: string }) => setSheetUrl(data.url))
+    // Fetch as authenticated blob to avoid 401 — pdf.js can't send JWT headers
+    let objectUrl: string | null = null;
+    api.get(`/sheets/${activeSheet.id}/file`, { responseType: 'blob' })
+      .then(res => {
+        objectUrl = URL.createObjectURL(res.data);
+        setSheetUrl(objectUrl);
+      })
       .catch(console.error);
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [activeSheet]);
 
   async function handleRunReview() {
