@@ -11,3 +11,4 @@ uploads/
 *.log
 coverage/
 .pnpm-store/
+.claude/
