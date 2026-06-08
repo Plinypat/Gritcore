@@ -67,6 +67,8 @@ export const projectsApi = {
 export const sheetsApi = {
   list: (projectId: string) =>
     api.get(`/projects/${projectId}/sheets`).then((r) => r.data.data),
+  getUrl: (sheetId: string) =>
+    api.get(`/sheets/${sheetId}/url`).then((r) => r.data.data),
   upload: (projectId: string, file: File) => {
     const form = new FormData();
     form.append('file', file);

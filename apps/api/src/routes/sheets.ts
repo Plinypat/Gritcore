@@ -4,7 +4,10 @@ import { join } from 'path';
 import { pipeline } from 'stream/promises';
 import { query, queryOne } from '../db/client.js';
 import { config } from '../config.js';
+import { uploadStream, getPresignedUrl } from '../lib/storage.js';
 import type { JWTPayload, Sheet } from '@gritcore/types';
+
+const useS3 = () => !!(config.S3_ENDPOINT && config.S3_ACCESS_KEY);
 
 export default async function sheetRoutes(fastify: FastifyInstance) {
   // POST /projects/:id/sheets — multipart upload
@@ -15,7 +18,6 @@ export default async function sheetRoutes(fastify: FastifyInstance) {
       const { orgId, userId } = request.user as JWTPayload;
       const { id: projectId } = request.params;
 
-      // Verify project belongs to org
       const project = await queryOne(
         'SELECT id FROM projects WHERE id = $1 AND org_id = $2',
         [projectId, orgId]
@@ -29,28 +31,31 @@ export default async function sheetRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Bad Request', message: 'No file uploaded', statusCode: 400 });
       }
 
-      // Save to local uploads dir
-      const uploadDir = join(config.UPLOAD_DIR, orgId, projectId);
-      mkdirSync(uploadDir, { recursive: true });
+      const sanitizedName = data.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filename = `${Date.now()}-${sanitizedName}`;
+      let fileUrl: string;
 
-      const filename = `${Date.now()}-${data.filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const filepath = join(uploadDir, filename);
+      if (useS3()) {
+        const key = `${orgId}/${projectId}/${filename}`;
+        await uploadStream(key, data.file, data.mimetype);
+        fileUrl = key;
+      } else {
+        const uploadDir = join(config.UPLOAD_DIR, orgId, projectId);
+        mkdirSync(uploadDir, { recursive: true });
+        const filepath = join(uploadDir, filename);
+        await pipeline(data.file, createWriteStream(filepath));
+        fileUrl = `/uploads/${orgId}/${projectId}/${filename}`;
+      }
 
-      await pipeline(data.file, createWriteStream(filepath));
-
-      const fileUrl = `/uploads/${orgId}/${projectId}/${filename}`;
-
-      // Parse sheet name from filename (strip extension)
       const sheetName = data.filename.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
-      const fileSize = data.file.bytesRead ?? 0;
+      const fileSize = (data.file as any).bytesRead ?? 0;
 
       const sheet = await queryOne<Sheet>(
         `INSERT INTO sheets (project_id, org_id, name, sheet_number, discipline, file_url, file_size, status, uploaded_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'ready', $8) RETURNING *`,
-        [projectId, orgId, sheetName, data.fields?.sheet_number ?? null, data.fields?.discipline ?? null, fileUrl, fileSize, userId]
+        [projectId, orgId, sheetName, (data.fields as any)?.sheet_number ?? null, (data.fields as any)?.discipline ?? null, fileUrl, fileSize, userId]
       );
 
-      // Increment org usage
       await query('UPDATE orgs SET sheets_used = sheets_used + 1 WHERE id = $1', [orgId]);
 
       return reply.code(201).send({ data: sheet });
@@ -100,6 +105,34 @@ export default async function sheetRoutes(fastify: FastifyInstance) {
       }
 
       return reply.send({ data: sheet });
+    }
+  );
+
+  // GET /sheets/:id/url — get a presigned (S3) or direct URL for the file
+  fastify.get<{ Params: { id: string } }>(
+    '/sheets/:id/url',
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const { orgId } = request.user as JWTPayload;
+      const sheet = await queryOne<Sheet>(
+        'SELECT * FROM sheets WHERE id = $1 AND org_id = $2',
+        [request.params.id, orgId]
+      );
+      if (!sheet) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Sheet not found', statusCode: 404 });
+      }
+
+      let url: string;
+      if (useS3()) {
+        url = await getPresignedUrl(sheet.file_url, 3600);
+      } else {
+        // Local file — construct absolute URL using request headers
+        const proto = request.headers['x-forwarded-proto'] ?? 'http';
+        const host = request.headers['x-forwarded-host'] ?? request.hostname;
+        url = `${proto}://${host}${sheet.file_url}`;
+      }
+
+      return reply.send({ data: { url, expiresIn: useS3() ? 3600 : null } });
     }
   );
 }

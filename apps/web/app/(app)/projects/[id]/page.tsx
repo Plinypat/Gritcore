@@ -1,21 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { projectsApi, sheetsApi, reviewsApi } from '@/lib/api';
 import { useProjectStore, useReviewStore } from '@/lib/store';
-import DrawingViewer from '@/components/viewer/drawing-viewer';
 import Toolbar from '@/components/viewer/toolbar';
 import PromptBar from '@/components/ai/prompt-bar';
 import RightPanel from '@/components/panels/right-panel';
 import type { Sheet } from '@gritcore/types';
+
+const PDFViewer = dynamic(() => import('@/components/viewer/pdf-viewer'), { ssr: false });
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const { setProject, setSheets, sheets, current } = useProjectStore();
   const { setReview, setIssues, setReviewing, isReviewing, activeReview } = useReviewStore();
   const [activeSheet, setActiveSheet] = useState<Sheet | null>(null);
-  const [zoom, setZoom] = useState(100);
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1.5);
 
   useEffect(() => {
     if (!id) return;
@@ -27,6 +30,16 @@ export default function ProjectPage() {
       if (s.length > 0) setActiveSheet(s[0]);
     }).catch(console.error);
   }, [id]);
+
+  useEffect(() => {
+    if (!activeSheet) {
+      setSheetUrl(null);
+      return;
+    }
+    sheetsApi.getUrl(activeSheet.id)
+      .then((data: { url: string }) => setSheetUrl(data.url))
+      .catch(console.error);
+  }, [activeSheet]);
 
   async function handleRunReview() {
     if (!activeSheet || isReviewing) return;
@@ -42,13 +55,7 @@ export default function ProjectPage() {
     }
   }
 
-  // Mock a sheet for the pilot drawing viewer if no sheets uploaded
-  const displaySheet = activeSheet ?? {
-    id: 'demo',
-    name: 'S-101 LEVEL P1 SLAB PLAN',
-    sheet_number: 'S-101',
-    discipline: 'Structural',
-  } as Sheet;
+  const displaySheetName = activeSheet?.name ?? 'No drawing selected';
 
   return (
     <div
@@ -69,9 +76,15 @@ export default function ProjectPage() {
           position: 'relative',
         }}
       >
-        {/* Drawing viewer */}
+        {/* PDF viewer */}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-          <DrawingViewer sheet={displaySheet} zoom={zoom} />
+          {sheetUrl ? (
+            <PDFViewer url={sheetUrl} externalZoom={zoom} />
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: 'var(--text2)' }}>
+              <div style={{ fontSize: 13 }}>Upload a drawing to get started</div>
+            </div>
+          )}
         </div>
 
         {/* Toolbar */}
@@ -84,7 +97,7 @@ export default function ProjectPage() {
             zIndex: 10,
           }}
         >
-          <Toolbar zoom={zoom} onZoom={setZoom} />
+          <Toolbar zoom={zoom * 100} onZoom={(z) => setZoom(z / 100)} />
         </div>
 
         {/* Prompt bar */}
@@ -97,7 +110,7 @@ export default function ProjectPage() {
           <PromptBar
             onRun={handleRunReview}
             isRunning={isReviewing}
-            sheetName={displaySheet.name}
+            sheetName={displaySheetName}
           />
         </div>
       </div>
