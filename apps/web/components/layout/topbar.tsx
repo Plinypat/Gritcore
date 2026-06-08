@@ -5,7 +5,7 @@ import { useAuthStore } from '@/lib/store';
 import { useRouter, usePathname } from 'next/navigation';
 
 const NAV_TABS = [
-  { id: 'review', label: 'AI Review', active: true },
+  { id: 'review', label: 'AI Review' },
   { id: 'pour', label: 'Pour Sequence' },
   { id: 'rebar', label: 'Rebar Takeoff' },
   { id: 'rfi', label: 'RFIs' },
@@ -13,18 +13,38 @@ const NAV_TABS = [
   { id: 'projects', label: 'Projects' },
 ];
 
+// Extract project id from pathname like /projects/[id]/...
+function getProjectId(pathname: string): string | null {
+  const match = pathname.match(/\/projects\/([^/]+)/);
+  return match ? match[1] : null;
+}
+
 export default function Topbar() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTab, setActiveTab] = useState('review');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const isDashboard = pathname === '/dashboard';
+  const projectId = getProjectId(pathname);
+
+  // Derive active tab from current path
+  const activeTab = (() => {
+    if (isDashboard) return 'projects';
+    if (pathname.endsWith('/rfis') || pathname.includes('/rfis/')) return 'rfi';
+    if (pathname.endsWith('/pour-sequence')) return 'pour';
+    if (pathname.endsWith('/takeoff')) return 'rebar';
+    if (projectId) return 'review';
+    return 'projects';
+  })();
 
   function handleTabClick(id: string) {
-    setActiveTab(id);
-    if (id === 'projects') router.push('/dashboard');
+    if (id === 'projects') { router.push('/dashboard'); return; }
+    if (!projectId) return;
+    if (id === 'review') router.push(`/projects/${projectId}`);
+    else if (id === 'rfi') router.push(`/projects/${projectId}/rfis`);
+    else if (id === 'pour') router.push(`/projects/${projectId}/pour-sequence`);
+    else if (id === 'rebar') router.push(`/projects/${projectId}/takeoff`);
   }
 
   const initials = user?.full_name

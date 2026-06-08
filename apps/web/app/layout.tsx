@@ -24,9 +24,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'GritCore — AI Construction Drawing Intelligence',
-  description: 'AI-powered construction drawing review for concrete, structural, and civil projects.',
-  icons: { icon: '/favicon.ico' },
+  title: 'GritCore',
+  description: 'AI Construction Drawing Intelligence',
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

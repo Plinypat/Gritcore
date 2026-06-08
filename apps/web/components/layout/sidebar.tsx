@@ -344,6 +344,32 @@ export default function Sidebar() {
 
       <div style={{ height: 1, background: 'var(--border)', margin: '8px 0' }} />
 
+      {/* Settings link */}
+      <div style={{ padding: '0 12px', marginBottom: 4 }}>
+        <div
+          onClick={() => router.push('/settings')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 8px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            background: pathname === '/settings' ? 'rgba(255,107,43,0.1)' : 'transparent',
+            border: pathname === '/settings' ? '1px solid rgba(255,107,43,0.2)' : '1px solid transparent',
+            marginBottom: 2,
+            color: pathname === '/settings' ? 'var(--accent)' : 'var(--text2)',
+            fontSize: 12,
+            fontFamily: 'DM Sans, sans-serif',
+          }}
+        >
+          <span>⚙</span>
+          <span>Settings</span>
+        </div>
+      </div>
+
+      <div style={{ height: 1, background: 'var(--border)', margin: '8px 0' }} />
+
       {/* Team Online */}
       <div style={{ padding: '0 16px' }}>
         <div
