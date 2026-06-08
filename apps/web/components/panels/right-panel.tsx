@@ -24,7 +24,7 @@ export default function RightPanel() {
 
   const totalRisk = issues.reduce((sum, i) => sum + (i.dollar_risk_estimate ?? 0), 0);
 
-  const qtyEst = activeReview?.quantity_estimate as Record<string, unknown> | null;
+  const qtyEst = activeReview?.quantity_estimate as Record<string, string | number | null> | null;
 
   return (
     <div
